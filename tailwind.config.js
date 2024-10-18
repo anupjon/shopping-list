@@ -11,7 +11,12 @@ module.exports = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      fontFamily: {
+        'malayalam': ['"Noto Sans Malayalam"', 'sans-serif'],
+      },
     },
   },
   plugins: [],
+  darkMode: 'class',
 };
+
