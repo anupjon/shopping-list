@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function ShoppingList() {
@@ -32,6 +32,24 @@ export default function ShoppingList() {
     };
   }, []);
 
+  const addItem = useCallback(async (item) => {
+    if (item.trim() !== "") {
+      const { data, error } = await supabase
+        .from('shopping_list')
+        .insert([{ 
+          text: item.trim(), 
+          completed: false,
+          created_by: session?.user?.id
+        }]);
+      
+      if (error) console.log('error', error);
+      else {
+        setNewItem("");
+        fetchItems();
+      }
+    }
+  }, [session, fetchItems]);
+
   useEffect(() => {
     if ("webkitSpeechRecognition" in window) {
       const recognition = new window.webkitSpeechRecognition();
@@ -56,7 +74,7 @@ export default function ShoppingList() {
         recognition.stop();
       };
     }
-  }, [isListening, language]);
+  }, [isListening, language, addItem]);
 
   useEffect(() => {
     // Check for user's preference in localStorage
@@ -69,6 +87,24 @@ export default function ShoppingList() {
     document.body.classList.toggle('dark', darkMode);
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
+
+  const checkUserPermission = useCallback(async (userId) => {
+    const { data, error } = await supabase
+      .from('user_permissions')
+      .select('has_access')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking user permission:', error);
+      setHasAccess(false);
+    } else if (data === null) {
+      console.log('No permission record found for user. Creating one...');
+      await createUserPermission(userId);
+    } else {
+      setHasAccess(data.has_access || false);
+    }
+  }, [createUserPermission]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -90,25 +126,7 @@ export default function ShoppingList() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  const checkUserPermission = async (userId) => {
-    const { data, error } = await supabase
-      .from('user_permissions')
-      .select('has_access')
-      .eq('user_id', userId)
-      .maybeSingle(); // Use maybeSingle() instead of single()
-
-    if (error) {
-      console.error('Error checking user permission:', error);
-      setHasAccess(false);
-    } else if (data === null) {
-      console.log('No permission record found for user. Creating one...');
-      await createUserPermission(userId);
-    } else {
-      setHasAccess(data.has_access || false);
-    }
-  };
+  }, [checkUserPermission, saveUserProfile]);
 
   const createUserPermission = async (userId) => {
     const { data, error } = await supabase
@@ -172,24 +190,6 @@ export default function ShoppingList() {
       // Deduplicate items based on id
       const uniqueItems = Array.from(new Map(data.map(item => [item.id, item])).values());
       setItems(uniqueItems);
-    }
-  };
-
-  const addItem = async (item) => {
-    if (item.trim() !== "") {
-      const { data, error } = await supabase
-        .from('shopping_list')
-        .insert([{ 
-          text: item.trim(), 
-          completed: false,
-          created_by: session.user.id  // Add this line
-        }]);
-      
-      if (error) console.log('error', error);
-      else {
-        setNewItem("");
-        fetchItems();
-      }
     }
   };
 
@@ -312,7 +312,7 @@ export default function ShoppingList() {
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white dark:bg-gray-800 text-black dark:text-white">
-        <p className="mb-4">You don't have permission to access this app.</p>
+        <p className="mb-4">You don&apos;t have permission to access this app.</p>
         <button
           onClick={signOut}
           className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-200"
@@ -471,7 +471,7 @@ export default function ShoppingList() {
             <p className="text-xl text-gray-600 dark:text-gray-400">
               {language === "en-US" 
                 ? "Your shopping basket is empty" 
-                : "നിങ്ങളുടെ ഷോപ്പിംഗ് ബാ്കർട്ട് ശൂന്യമാണ്"}
+                : "നിങ്ങളുടെ ഷോപ്പിംഗ് ബാസ്കറ്റ് ശൂന്യമാണ്"}
             </p>
           </div>
         )}
@@ -482,7 +482,7 @@ export default function ShoppingList() {
               <p className="mb-4 text-black dark:text-white">
                 {language === "en-US" 
                   ? "Are you sure you want to delete all items?" 
-                  : "എല്ലാ ഇനങ്ങളും നീക്കം ചെയ്യണമെന്ന് തീർച്ചയാണോ?"}
+                  : "എല്ലാ ഇനങ്ങളും നീക്കം ചെയ്യണമെന്ന് തീർച്ചാണോ?"}
               </p>
               <div className="flex justify-end space-x-2">
                 <button
@@ -534,7 +534,7 @@ export default function ShoppingList() {
             >
               {isListening ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
