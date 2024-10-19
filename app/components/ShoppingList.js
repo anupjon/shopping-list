@@ -341,7 +341,7 @@ export default function ShoppingList() {
   if (hasAccess === false) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white dark:bg-gray-800 text-black dark:text-white">
-        <p className="mb-4">You don't have permission to access this app.</p>
+        <p className="mb-4">You dont have permission to access this app.</p>
         <button
           onClick={signOut}
           className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-200"
