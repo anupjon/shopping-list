@@ -14,8 +14,42 @@ export default function ShoppingList() {
   const editInputRef = useRef(null);
   const [darkMode, setDarkMode] = useState(false);
   const [session, setSession] = useState(null);
-  const [hasAccess, setHasAccess] = useState(false);
+  const [hasAccess, setHasAccess] = useState(null);
   const [userName, setUserName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkSessionAndPermissions = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      
+      if (session) {
+        await checkUserPermission(session.user.id);
+        await saveUserProfile(session.user);
+      }
+      
+      setIsLoading(false);
+    };
+
+    checkSessionAndPermissions();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setIsLoading(true);
+      
+      if (session) {
+        await checkUserPermission(session.user.id);
+        await saveUserProfile(session.user);
+      } else {
+        setHasAccess(null);
+        setUserName("");
+      }
+      
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     fetchItems();
@@ -70,58 +104,42 @@ export default function ShoppingList() {
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        checkUserPermission(session.user.id);
-        saveUserProfile(session.user);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        checkUserPermission(session.user.id);
-        saveUserProfile(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const checkUserPermission = async (userId) => {
-    const { data, error } = await supabase
-      .from('user_permissions')
-      .select('has_access')
-      .eq('user_id', userId)
-      .maybeSingle(); // Use maybeSingle() instead of single()
+    try {
+      const { data, error } = await supabase
+        .from('user_permissions')
+        .select('has_access')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (error) {
+      if (error) throw error;
+
+      if (data === null) {
+        console.log('No permission record found for user. Creating one...');
+        await createUserPermission(userId);
+      } else {
+        setHasAccess(data.has_access || false);
+      }
+    } catch (error) {
       console.error('Error checking user permission:', error);
       setHasAccess(false);
-    } else if (data === null) {
-      console.log('No permission record found for user. Creating one...');
-      await createUserPermission(userId);
-    } else {
-      setHasAccess(data.has_access || false);
     }
   };
 
   const createUserPermission = async (userId) => {
-    const { data, error } = await supabase
-      .from('user_permissions')
-      .insert({ user_id: userId, has_access: false })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('user_permissions')
+        .insert({ user_id: userId, has_access: false })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+
+      setHasAccess(data.has_access);
+    } catch (error) {
       console.error('Error creating user permission:', error);
       setHasAccess(false);
-    } else {
-      setHasAccess(data.has_access);
     }
   };
 
@@ -299,6 +317,14 @@ export default function ShoppingList() {
     }
   }, [editingId]);
 
+  if (isLoading) {
+    return (
+      <div className="flex w-full items-center justify-center h-screen bg-white dark:bg-gray-800">
+        <div className="loader"></div>
+      </div>
+    );
+  }
+
   if (!session) {
     return (
       <div className="flex w-full items-center justify-center h-screen bg-white dark:bg-gray-800">
@@ -312,10 +338,10 @@ export default function ShoppingList() {
     );
   }
 
-  if (!hasAccess) {
+  if (hasAccess === false) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white dark:bg-gray-800 text-black dark:text-white">
-        <p className="mb-4">You dont have permission to access this app.</p>
+        <p className="mb-4">You don't have permission to access this app.</p>
         <button
           onClick={signOut}
           className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-200"
