@@ -1,21 +1,14 @@
-import { Inter } from 'next/font/google'
-import { Noto_Sans_Malayalam } from 'next/font/google'
 import "./globals.css"
-
-const inter = Inter({ subsets: ['latin'] })
-
-const notoSansMalayalam = Noto_Sans_Malayalam({
-  weight: ['400', '700'],
-  subsets: ['malayalam'],
-  display: 'swap',
-})
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com"></link>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin></link>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Malayalam:wght@100..900&display=swap" rel="stylesheet"></link>
       </head>
-      <body className={`${inter.className} ${notoSansMalayalam.variable}`}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

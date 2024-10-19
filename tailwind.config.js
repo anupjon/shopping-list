@@ -12,7 +12,7 @@ module.exports = {
         foreground: "var(--foreground)",
       },
       fontFamily: {
-        'malayalam': ['"Noto Sans Malayalam"', 'sans-serif'],
+        'malayalam': ['"Noto Serif Malayalam"', 'sans-serif'],
       },
     },
   },
